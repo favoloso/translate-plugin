@@ -16,7 +16,6 @@ use RainLab\Translate\Classes\Translator;
  */
 class Plugin extends PluginBase
 {
-
     /**
      * Returns information about this plugin.
      *
@@ -28,7 +27,8 @@ class Plugin extends PluginBase
             'name'        => 'rainlab.translate::lang.plugin.name',
             'description' => 'rainlab.translate::lang.plugin.description',
             'author'      => 'Alexey Bobkov, Samuel Georges',
-            'icon'        => 'icon-language'
+            'icon'        => 'icon-language',
+            'homepage'    => 'https://github.com/rainlab/translate-plugin'
         ];
     }
 
@@ -38,7 +38,10 @@ class Plugin extends PluginBase
          * Set the page context for translation caching.
          */
         Event::listen('cms.page.beforeDisplay', function($controller, $url, $page) {
-            if (!$page) return;
+            if (!$page) {
+                return;
+            }
+
             $translate = Translator::instance();
             $translate->loadLocaleFromSession();
             Message::setContext($translate->getLocale(), $page->url);
@@ -48,7 +51,6 @@ class Plugin extends PluginBase
          * Adds language suffixes to content files.
          */
         Event::listen('cms.page.beforeRenderContent', function($controller, $fileName) {
-
             if (!strlen(File::extension($fileName))) {
                 $fileName .= '.htm';
             }
@@ -68,16 +70,21 @@ class Plugin extends PluginBase
          * Automatically replace form fields for multi lingual equivalents
          */
         Event::listen('backend.form.extendFieldsBefore', function($widget) {
+            if (!$model = $widget->model) {
+                return;
+            }
 
-            if (!$model = $widget->model) return;
-
-            if (!method_exists($model, 'isClassExtendedWith')) return;
+            if (!method_exists($model, 'isClassExtendedWith')) {
+                return;
+            }
 
             if (!$model->isClassExtendedWith('RainLab.Translate.Behaviors.TranslatableModel')) {
                 return;
             }
 
-            if (!is_array($model->translatable)) return;
+            if (!is_array($model->translatable)) {
+                return;
+            }
 
             if (!empty($widget->config->fields)) {
                 $widget->fields = $this->processFormMLFields($widget->fields, $model);
@@ -96,21 +103,26 @@ class Plugin extends PluginBase
     public function registerComponents()
     {
         return [
-           'RainLab\Translate\Components\LocalePicker' => 'localePicker',
+           'RainLab\Translate\Components\LocalePicker' => 'localePicker'
         ];
     }
 
     public function registerPermissions()
     {
         return [
-            'rainlab.translate.manage_locales'  => ['tab' => 'Translation', 'label' => 'rainlab.translate::lang.plugin.manage_locales'],
-            'rainlab.translate.manage_messages' => ['tab' => 'Translation', 'label' => 'rainlab.translate::lang.plugin.manage_messages']
+            'rainlab.translate.manage_locales'  => [
+                'tab'   => 'rainlab.translate::lang.plugin.tab',
+                'label' => 'rainlab.translate::lang.plugin.manage_locales'
+            ],
+            'rainlab.translate.manage_messages' => [
+                'tab'   => 'rainlab.translate::lang.plugin.tab',
+                'label' => 'rainlab.translate::lang.plugin.manage_messages'
+            ]
         ];
     }
 
     public function registerSettings()
     {
-
         return [
             'locales' => [
                 'label'       => 'rainlab.translate::lang.locale.title',
@@ -129,7 +141,7 @@ class Plugin extends PluginBase
                 'order'       => 551,
                 'category'    => 'rainlab.translate::lang.plugin.name',
                 'permissions' => ['rainlab.translate.manage_messages']
-            ],
+            ]
         ];
     }
 
@@ -141,8 +153,8 @@ class Plugin extends PluginBase
     {
         return [
             'filters' => [
-                '_' => [$this, 'translateString'],
-                '__' => [$this, 'translatePlural'],
+                '_'  => [$this, 'translateString'],
+                '__' => [$this, 'translatePlural']
             ]
         ];
     }
@@ -160,8 +172,8 @@ class Plugin extends PluginBase
             ],
             'RainLab\Translate\FormWidgets\MLRichEditor' => [
                 'label' => 'Rich Editor (ML)',
-                'code' => 'mlricheditor'
-            ],
+                'code'  => 'mlricheditor'
+            ]
         ];
     }
 
@@ -184,19 +196,23 @@ class Plugin extends PluginBase
     protected function processFormMLFields($fields, $model)
     {
         foreach ($fields as $name => $config) {
-            if (!in_array($name, $model->translatable))
+            if (!in_array($name, $model->translatable)) {
                 continue;
+            }
 
             $type = array_get($config, 'type', 'text');
-            if ($type == 'text')
+
+            if ($type == 'text') {
                 $fields[$name]['type'] = 'mltext';
-            elseif ($type == 'textarea')
+            }
+            elseif ($type == 'textarea') {
                 $fields[$name]['type'] = 'mltextarea';
-            elseif ($type == 'richeditor')
+            }
+            elseif ($type == 'richeditor') {
                 $fields[$name]['type'] = 'mlricheditor';
+            }
         }
 
         return $fields;
     }
-
 }

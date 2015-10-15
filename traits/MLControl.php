@@ -13,7 +13,6 @@ use Session;
  */
 trait MLControl
 {
-
     /**
      * @var string Form field column name.
      */
@@ -61,6 +60,7 @@ trait MLControl
         $this->viewPath = $this->parentViewPath;
         $result = $this->makePartial($partial, $params);
         $this->viewPath = $oldViewPath;
+
         return $result;
     }
 
@@ -103,11 +103,13 @@ trait MLControl
      */
     protected function makeRenderFormField()
     {
-        if ($this->isAvailable)
+        if ($this->isAvailable) {
             return $this->formField;
+        }
 
         $field = clone $this->formField;
         $field->type = $this->getFallbackType();
+
         return $field;
     }
 
@@ -143,8 +145,9 @@ trait MLControl
     public function getLocaleSaveData()
     {
         $data = post('RLTranslate');
-        if (!is_array($data))
+        if (!is_array($data)) {
             return [];
+        }
 
         $values = [];
         foreach ($data as $locale => $_data) {
@@ -162,5 +165,4 @@ trait MLControl
     {
         return defined('static::FALLBACK_TYPE') ? static::FALLBACK_TYPE : 'text';
     }
-
 }
