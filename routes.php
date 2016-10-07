@@ -1,6 +1,5 @@
 <?php
 
-use RainLab\Translate\Models\Locale;
 use RainLab\Translate\Models\Message;
 use RainLab\Translate\Classes\Translator;
 
@@ -9,19 +8,24 @@ use RainLab\Translate\Classes\Translator;
  */
 App::before(function($request) {
 
+    if (App::runningInBackend()) {
+        return;
+    }
+
     $translator = Translator::instance();
 
     if (!$translator->isConfigured()) {
         return;
     }
 
-    $locale = Request::segment(1);
-
-    if (!Locale::isValid($locale)) {
+    if (!$translator->loadLocaleFromRequest()) {
+        $translator->loadLocaleFromSession();
         return;
     }
 
-    $translator->setLocale($locale);
+    if (!$locale = $translator->getLocale()) {
+        return;
+    }
 
     /*
      * Register routes
@@ -47,5 +51,7 @@ App::before(function($request) {
  * Save any used messages to the contextual cache.
  */
 App::after(function($request) {
-    Message::saveToCache();
+    if (class_exists('RainLab\Translate\Models\Message')) {
+        Message::saveToCache();
+    }
 });

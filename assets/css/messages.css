@@ -1,9 +1,14 @@
 #messagesContainer {
   padding-top: 20px;
 }
+.callout-container .callout {
+  margin-bottom: 0;
+}
 .translate-messages {
   position: relative;
   margin-top: -20px;
+}
+.translate-messages .pagination {
   margin-left: 20px;
 }
 .translate-messages .dropdown-button-placeholder {
@@ -26,6 +31,11 @@
   text-align: center;
   padding: 5px;
 }
+.translate-messages .header-language,
+.translate-messages .header-swap-languages,
+.translate-messages .header-hide-translated {
+  line-height: 27px;
+}
 .translate-messages .header-language {
   float: left;
   cursor: pointer;
@@ -42,13 +52,14 @@
 .translate-messages .header-hide-translated {
   float: right;
   text-align: right;
-  line-height: 27px;
 }
 .translate-messages .header-hide-translated label {
   font-weight: normal;
   margin-bottom: 0;
   margin-right: 10px;
+  font-size: 12px;
 }
 .translate-messages .header-hide-translated label:before {
-  bottom: 6px;
+  top: 2px;
+  left: 0;
 }

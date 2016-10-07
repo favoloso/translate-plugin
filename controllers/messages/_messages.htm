@@ -1,7 +1,10 @@
 <div class="translate-messages">
-    <div id="gridHeaderContainer">
-        <?= $this->makePartial('grid_header') ?>
+    <div id="tableHeaderContainer">
+        <?= $this->makePartial('table_headers') ?>
+    </div>
+    <div id="tableToolbarContainer">
+        <?= $this->makePartial('table_toolbar') ?>
     </div>
 
-    <?= $grid->render() ?>
+    <?= $table->render() ?>
 </div>

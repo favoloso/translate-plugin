@@ -1,15 +1,13 @@
 <?php namespace RainLab\Translate;
 
-use App;
 use Lang;
-use File;
 use Event;
 use Backend;
 use Cms\Classes\Page;
-use Cms\Classes\Content;
 use System\Classes\PluginBase;
 use RainLab\Translate\Models\Message;
-use RainLab\Translate\Classes\Translator;
+use RainLab\Translate\Classes\EventRegistry;
+use Exception;
 
 /**
  * Translate Plugin Information File
@@ -32,71 +30,57 @@ class Plugin extends PluginBase
         ];
     }
 
+    public function register()
+    {
+        /*
+         * Defer event 2 levels deep to let others contribute before this registers.
+         */
+        Event::listen('backend.form.extendFieldsBefore', function($widget) {
+            $widget->bindEvent('form.extendFieldsBefore', function() use ($widget) {
+                EventRegistry::instance()->registerFormFieldReplacements($widget);
+            });
+        });
+
+        /*
+         * Handle translated page URLs
+         */
+        Page::extend(function($page) {
+            $page->extendClassWith('RainLab\Translate\Behaviors\TranslatablePageUrl');
+        });
+    }
+
     public function boot()
     {
         /*
          * Set the page context for translation caching.
          */
         Event::listen('cms.page.beforeDisplay', function($controller, $url, $page) {
-            if (!$page) {
-                return;
-            }
+            EventRegistry::instance()->setMessageContext($page);
+        });
 
-            $translate = Translator::instance();
-            $translate->loadLocaleFromSession();
-            Message::setContext($translate->getLocale(), $page->url);
+        /*
+         * Import messages defined by the theme
+         */
+        Event::listen('cms.theme.setActiveTheme', function($code) {
+            EventRegistry::instance()->importMessagesFromTheme();
         });
 
         /*
          * Adds language suffixes to content files.
          */
         Event::listen('cms.page.beforeRenderContent', function($controller, $fileName) {
-            if (!strlen(File::extension($fileName))) {
-                $fileName .= '.htm';
-            }
-
-            /*
-             * Splice the active locale in to the filename
-             * - content.htm -> content.en.htm
-             */
-            $locale = Translator::instance()->getLocale();
-            $fileName = substr_replace($fileName, '.'.$locale, strrpos($fileName, '.'), 0);
-            if (($content = Content::loadCached($controller->getTheme(), $fileName)) !== null) {
-                return $content;
-            }
+            return EventRegistry::instance()
+                ->findTranslatedContentFile($controller, $fileName)
+            ;
         });
 
         /*
-         * Automatically replace form fields for multi lingual equivalents
+         * Prune localized content files from template list
          */
-        Event::listen('backend.form.extendFieldsBefore', function($widget) {
-            if (!$model = $widget->model) {
-                return;
-            }
-
-            if (!method_exists($model, 'isClassExtendedWith')) {
-                return;
-            }
-
-            if (!$model->isClassExtendedWith('RainLab.Translate.Behaviors.TranslatableModel')) {
-                return;
-            }
-
-            if (!is_array($model->translatable)) {
-                return;
-            }
-
-            if (!empty($widget->config->fields)) {
-                $widget->fields = $this->processFormMLFields($widget->fields, $model);
-            }
-
-            if (!empty($widget->config->tabs['fields'])) {
-                $widget->tabs['fields'] = $this->processFormMLFields($widget->tabs['fields'], $model);
-            }
-
-            if (!empty($widget->config->secondaryTabs['fields'])) {
-                $widget->secondaryTabs['fields'] = $this->processFormMLFields($widget->secondaryTabs['fields'], $model);
-            }
+        Event::listen('pages.content.templateList', function($widget, $templates) {
+            return EventRegistry::instance()
+                ->pruneTranslatedContentTemplates($templates)
+            ;
         });
     }
 
@@ -173,6 +157,10 @@ class Plugin extends PluginBase
             'RainLab\Translate\FormWidgets\MLRichEditor' => [
                 'label' => 'Rich Editor (ML)',
                 'code'  => 'mlricheditor'
+            ],
+            'RainLab\Translate\FormWidgets\MLMarkdownEditor' => [
+                'label' => 'Markdown Editor (ML)',
+                'code'  => 'mlmarkdowneditor'
             ]
         ];
     }
@@ -184,35 +172,6 @@ class Plugin extends PluginBase
 
     public function translatePlural($string, $count = 0, $params = [])
     {
-        return Lang::choice($string, $count, $params);
-    }
-
-    /**
-     * Helper function to replace standard fields with multi lingual equivalents
-     * @param  array $fields
-     * @param  Model $model
-     * @return array
-     */
-    protected function processFormMLFields($fields, $model)
-    {
-        foreach ($fields as $name => $config) {
-            if (!in_array($name, $model->translatable)) {
-                continue;
-            }
-
-            $type = array_get($config, 'type', 'text');
-
-            if ($type == 'text') {
-                $fields[$name]['type'] = 'mltext';
-            }
-            elseif ($type == 'textarea') {
-                $fields[$name]['type'] = 'mltextarea';
-            }
-            elseif ($type == 'richeditor') {
-                $fields[$name]['type'] = 'mlricheditor';
-            }
-        }
-
-        return $fields;
+        return Lang::choice(Message::trans($string, $params), $count, $params);
     }
 }

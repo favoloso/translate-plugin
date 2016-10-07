@@ -2,10 +2,17 @@
     padding-top: 20px;
 }
 
+.callout-container .callout {
+    margin-bottom: 0;
+}
+
 .translate-messages {
     position: relative;
     margin-top: -20px;
-    margin-left: 20px;
+
+    .pagination {
+        margin-left: 20px;
+    }
 
     .dropdown-button-placeholder {
         display:block;
@@ -31,6 +38,12 @@
         padding: 5px;
     }
 
+    .header-language,
+    .header-swap-languages,
+    .header-hide-translated {
+        line-height: 27px;
+    }
+
     .header-language {
         float: left;
         cursor: pointer;
@@ -50,17 +63,18 @@
     .header-hide-translated {
         float: right;
         text-align: right;
-        line-height: 27px;
 
         label {
             font-weight: normal;
             margin-bottom: 0;
             margin-right: 10px;
+            font-size: 12px;
+
             &:before {
-                bottom: 6px;
+                top: 2px;
+                left: 0;
             }
         }
-
     }
 
 }

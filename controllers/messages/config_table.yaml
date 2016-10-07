@@ -2,17 +2,13 @@
 #  Grid Widget Configuration
 # ===================================
 
-#showHeader: false
-#disableToolbar: true
-allowInsert: false
-allowRemove: true
-toolbar:
-    buttons: grid_toolbar
+dataSource: server
+keyFrom: id
+recordsPerPage: 500
+adding: false
 
 columns:
     from:
         title: From
-        readOnly: false
     to:
         title: To
-        readOnly: false

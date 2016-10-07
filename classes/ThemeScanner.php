@@ -1,9 +1,11 @@
 <?php namespace RainLab\Translate\Classes;
 
 use Cms\Classes\Page;
+use Cms\Classes\Theme;
 use Cms\Classes\Layout;
 use Cms\Classes\Partial;
 use RainLab\Translate\Models\Message;
+use RainLab\Translate\Classes\Translator;
 
 /**
  * Theme scanner class
@@ -25,10 +27,47 @@ class ThemeScanner
     }
 
     /**
-     * Scans the theme templates for message references.
+     * Scans theme templates and config for messages.
      * @return void
      */
     public function scanForMessages()
+    {
+        $this->scanThemeConfigForMessages();
+        $this->scanThemeTemplatesForMessages();
+    }
+
+    /**
+     * Scans the theme configuration for defined messages
+     * @return void
+     */
+    public function scanThemeConfigForMessages()
+    {
+        $theme = Theme::getActiveTheme();
+        $config = $theme->getConfigArray('translate');
+
+        if (!count($config)) {
+            return;
+        }
+
+        $translator = Translator::instance();
+        $keys = [];
+
+        foreach ($config as $locale => $messages) {
+            $keys = array_merge($keys, array_keys($messages));
+        }
+
+        Message::importMessages($keys);
+
+        foreach ($config as $locale => $messages) {
+            Message::importMessageCodes($messages, $locale);
+        }
+    }
+
+    /**
+     * Scans the theme templates for message references.
+     * @return void
+     */
+    public function scanThemeTemplatesForMessages()
     {
         $messages = [];
 
