@@ -40,6 +40,8 @@ If translated, the text above will appear as whatever language is selected by th
 
 Message or string translation is the conversion of adhoc strings used throughout the site. A message can be translated with parameters.
 
+    {{ site.name|_ }}
+
     {{ 'Welcome to our website!'|_ }}
 
     {{ 'Hello :name!'|_({ name: 'Friend' }) }}
@@ -48,7 +50,25 @@ A message can also be translated for a choice usage.
 
     {{ 'There are no apples|There are :number applies!'|__(2, { number: 'two' }) }}
 
-[comment]: <> (Themes can provide default values for these messages by including a `lang.yaml` file in the theme directory.)
+Themes can provide default values for these messages by defining a `translate` key in the `theme.yaml` file, located in the theme directory.
+
+    name: My Theme
+    # [...]
+
+    translate:
+        en:
+            site.name: 'My Website'
+            nav.home: 'Home'
+            nav.video: 'Video'
+            title.home: 'Welcome Home'
+            title.video: 'Screencast Video'
+
+You may also define the translations in a separate file, where the path is relative to the theme. The following definition will source the default messages from the file **config/lang.yaml** inside the theme.
+
+    name: My Theme
+    # [...]
+
+    translate: config/lang.yaml
 
 ## Content translation
 
@@ -96,10 +116,53 @@ This can be useful inside a Twig template.
 There are ways to get and set attributes without changing the context.
 
     // Gets a single translated attribute for a language
-    $user->getTranslateAttribute('name', 'fr');
+    $user->getAttributeTranslated('name', 'fr');
 
     // Sets a single translated attribute for a language
-    $user->setTranslateAttribute('name', 'Jean-Claude', 'fr');
+    $user->setAttributeTranslated('name', 'Jean-Claude', 'fr');
+
+## Indexed attributes
+
+Translatable model attributes can also be declared as an index by passing the `$transatable` attribute value as an array. The first value is the attribute name, the other values represent options, in this case setting the option `index` to `true`.
+
+        public $translatable = [
+            'name',
+            ['slug', 'index' => true]
+        ];
+
+Once an attribute is indexed, you may use the `transWhere` method to apply a basic query to the model.
+
+    Post::transWhere('slug', 'hello-world')->first();
+
+The `transWhere` method accepts a third argument to explicitly pass a locale value, otherwise it will be detected from the enivronment.
+
+    Post::transWhere('slug', 'hello-world', 'en')->first();
+
+## URL translation
+
+Pages in the CMS support translating the URL property. Assuming you have 3 languages set up:
+
+- en: English
+- fr: French
+- ru: Russian
+
+There is a page with the following content:
+
+```
+url = "/contact"
+
+[viewBag]
+localeUrl[ru] = "/контакт"
+==
+<p>Page content</p>
+```
+
+The word "Contact" in French is the same so a translated URL is not given, or needed. If the page has no URL override specified, then the default URL will be used. Pages will not be duplicated for a given language.
+
+- /fr/contact - Page in French
+- /en/contact - Page in English
+- /ru/контакт - Page in Russian
+- /ru/contact - 404
 
 ## Conditionally extending plugins
 

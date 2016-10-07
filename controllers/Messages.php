@@ -4,7 +4,6 @@ use Lang;
 use Flash;
 use Request;
 use BackendMenu;
-use Backend\Widgets\Grid;
 use Backend\Classes\Controller;
 use RainLab\Translate\Models\Message;
 use RainLab\Translate\Models\Locale;
@@ -19,6 +18,8 @@ class Messages extends Controller
 {
     public $requiredPermissions = ['rainlab.translate.manage_messages'];
 
+    protected $hideTranslated = false;
+
     public function __construct()
     {
         parent::__construct();
@@ -32,50 +33,61 @@ class Messages extends Controller
 
     public function index()
     {
-        $this->bodyClass = 'slim-container';
+        $this->bodyClass = 'slim-container breadcrumb-flush';
         $this->pageTitle = 'rainlab.translate::lang.messages.title';
-        $this->prepareGrid();
+        $this->prepareTable();
     }
 
     public function onRefresh()
     {
-        $this->prepareGrid();
+        $this->prepareTable();
         return ['#messagesContainer' => $this->makePartial('messages')];
     }
 
     public function onClearCache()
     {
         CacheHelper::clear();
+
         Flash::success(Lang::get('rainlab.translate::lang.messages.clear_cache_success'));
+    }
+
+    public function onLoadScanMessagesForm()
+    {
+        return $this->makePartial('scan_messages_form');
     }
 
     public function onScanMessages()
     {
+        if (post('purge_messages', false)) {
+            Message::truncate();
+        }
+
         ThemeScanner::scan();
+
         Flash::success(Lang::get('rainlab.translate::lang.messages.scan_messages_success'));
 
         return $this->onRefresh();
     }
 
-    public function prepareGrid()
+    public function prepareTable()
     {
         $fromCode = post('locale_from', null);
         $toCode = post('locale_to', Locale::getDefault()->code);
+        $this->hideTranslated = post('hide_translated', false);
 
         /*
          * Page vars
          */
-        $this->vars['hideTranslated'] = post('hide_translated', false);
+        $this->vars['hideTranslated'] = $this->hideTranslated;
         $this->vars['defaultLocale'] = Locale::getDefault();
         $this->vars['locales'] = Locale::all();
         $this->vars['selectedFrom'] = $selectedFrom = Locale::findByCode($fromCode);
         $this->vars['selectedTo'] = $selectedTo = Locale::findByCode($toCode);
 
         /*
-         * Make grid config, make default column read only
+         * Make table config, make default column read only
          */
-        $config = $this->makeConfig('config_grid.yaml');
-        $config->data = $this->getGridData($selectedFrom, $selectedTo);
+        $config = $this->makeConfig('config_table.yaml');
 
         if (!$selectedFrom) {
             $config->columns['from']['readOnly'] = true;
@@ -85,89 +97,94 @@ class Messages extends Controller
         }
 
         /*
-         * Make grid widget
+         * Make table widget
          */
-        $widget = new Grid($this, $config);
-        $widget->bindEvent('grid.dataChanged', function($action, $changes) {
-            if ($action == 'remove') {
-                $this->removeGridData($changes);
-            }
-            else {
-                $this->updateGridData($changes);
+        $widget = $this->makeWidget('Backend\Widgets\Table', $config);
+        $widget->bindToController();
+
+        /*
+         * Populate data
+         */
+        $dataSource = $widget->getDataSource();
+
+        $dataSource->bindEvent('data.getRecords', function($offset, $count) use ($selectedFrom, $selectedTo) {
+            $messages = $count
+                ? Message::orderBy('message_data','asc')->limit($count)->offset($offset)->get()
+                : Message::orderBy('message_data','asc')->get();
+
+            $result = $this->processTableData($messages, $selectedFrom, $selectedTo);
+            return $result;
+        });
+
+        $dataSource->bindEvent('data.getCount', function() {
+            return Message::count();
+        });
+
+        $dataSource->bindEvent('data.updateRecord', function($key, $data) {
+            $message = Message::find($key);
+            $this->updateTableData($message, $data);
+            CacheHelper::clear();
+        });
+
+        $dataSource->bindEvent('data.deleteRecord', function($key) {
+            if ($message = Message::find($key)) {
+                $message->delete();
             }
         });
 
-        $widget->bindToController();
-        $this->vars['grid'] = $widget;
+        $this->vars['table'] = $widget;
     }
 
-    protected function getGridData($from, $to)
+    protected function isHideTranslated()
     {
-        $messages = Message::all();
+        return post('hide_translated', false);
+    }
 
+    protected function processTableData($messages, $from, $to)
+    {
         $fromCode = $from ? $from->code : null;
         $toCode = $to ? $to->code : null;
 
         $data = [];
         foreach ($messages as $message) {
+            $toContent = $message->forLocale($toCode);
+            if ($this->hideTranslated && $toContent) {
+                continue;
+            }
+
             $data[] = [
+                'id' => $message->id,
                 'code' => $message->code,
                 'from' => $message->forLocale($fromCode),
-                'to' => $message->forLocale($toCode)
+                'to' => $toContent
             ];
         }
 
         return $data;
     }
 
-    protected function removeGridData($changes)
+    protected function updateTableData($message, $data)
     {
-        if (!is_array($changes)) {
+        if (!$message) {
             return;
         }
 
-        foreach ($changes as $change) {
-            if (!$code = array_get($change, 'rowData.code')) {
-                continue;
+        $fromCode = post('locale_from');
+        $toCode = post('locale_to');
+
+        // @todo This should be unified to a single save()
+        if ($fromCode) {
+            $fromValue = array_get($data, 'from');
+            if ($fromValue != $message->forLocale($fromCode)) {
+                $message->toLocale($fromCode, $fromValue);
             }
-
-            if (!$item = Message::whereCode($code)->first()) {
-                continue;
-            }
-
-            $item->delete();
-        }
-    }
-
-    protected function updateGridData($changes)
-    {
-        if (!is_array($changes)) {
-            return;
         }
 
-        foreach ($changes as $change) {
-            if (!$code = array_get($change, 'rowData.code')) {
-                continue;
+        if ($toCode) {
+            $toValue = array_get($data, 'to');
+            if ($toValue != $message->forLocale($toCode)) {
+                $message->toLocale($toCode, $toValue);
             }
-
-            if (!$columnType = array_get($change, 'keyName')) {
-                continue;
-            }
-
-            if ($columnType != 'to' && $columnType != 'from') {
-                continue;
-            }
-
-            if (!$locale = post('locale_'.$columnType)) {
-                continue;
-            }
-
-            if (!$item = Message::whereCode($code)->first()) {
-                continue;
-            }
-
-            $newValue = array_get($change, 'newValue');
-            $item->toLocale($locale, $newValue);
         }
     }
 }

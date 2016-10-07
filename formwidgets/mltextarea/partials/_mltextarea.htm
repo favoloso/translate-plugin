@@ -12,14 +12,13 @@
         <textarea
             name="<?= $field->getName() ?>"
             id="<?= $field->getId('placeholderField') ?>"
-            value="<?= e($field->value) ?>"
             placeholder="<?= e(trans($field->placeholder)) ?>"
             class="form-control field-textarea size-<?= $field->size ?>"
             autocomplete="off"
-            <?= $field->getAttributes() ?>></textarea>
+            <?= $field->getAttributes() ?>><?= e($field->value) ?></textarea>
 
         <button
-            class="btn btn-default"
+            class="btn btn-default ml-btn"
             data-toggle="dropdown"
             data-active-locale
             type="button">

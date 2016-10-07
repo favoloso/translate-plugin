@@ -3,7 +3,7 @@
 use App;
 use Schema;
 use Session;
-use DbDongle;
+use Request;
 use RainLab\Translate\Models\Locale;
 
 /**
@@ -104,7 +104,7 @@ class Translator
         if (Session::has(self::SESSION_CONFIGURED)) {
             $result = true;
         }
-        elseif (DbDongle::hasDatabase() && Schema::hasTable('rainlab_translate_locales')) {
+        elseif (App::hasDatabase() && Schema::hasTable('rainlab_translate_locales')) {
             Session::put(self::SESSION_CONFIGURED, true);
             $result = true;
         }
@@ -116,14 +116,83 @@ class Translator
     }
 
     //
+    // Request handling
+    //
+
+    /**
+     * Sets the locale based on the first URI segment.
+     * @return bool
+     */
+    public function loadLocaleFromRequest()
+    {
+        $locale = Request::segment(1);
+
+        if (!Locale::isValid($locale)) {
+            return false;
+        }
+
+        $this->setLocale($locale);
+        return true;
+    }
+
+    /**
+     * Returns the current path prefixed with language code.
+     *
+     * @param string $locale optional language code, default to the system default language
+     * @return string
+     */
+    public function getCurrentPathInLocale($locale = null)
+    {
+        return $this->getPathInLocale(Request::path(), $locale);
+    }
+
+    /**
+     * Returns the path prefixed with language code.
+     *
+     * @param string $path Path to rewrite
+     * @param string $locale optional language code, default to the system default language
+     * @return string
+     */
+    public function getPathInLocale($path, $locale = null)
+    {
+        $segments = explode('/', $path);
+
+        $segments = array_values(array_filter($segments, function ($v) {
+            return $v != '';
+        }));
+
+        if (is_null($locale) || !Locale::isValid($locale)) {
+            $locale = $this->defaultLocale;
+        }
+
+        if (count($segments) == 0 || Locale::isValid($segments[0])) {
+            $segments[0] = $locale;
+        }
+        else {
+            array_unshift($segments, $locale);
+        }
+
+        return implode('/', $segments);
+    }
+
+    //
     // Session handling
     //
 
+    /**
+     * Looks at the session storage to find a locale.
+     * @return bool
+     */
     public function loadLocaleFromSession()
     {
-        if ($sessionLocale = $this->getSessionLocale()) {
-            $this->setLocale($sessionLocale);
+        $locale = $this->getSessionLocale();
+
+        if (!$locale) {
+            return false;
         }
+
+        $this->setLocale($locale);
+        return true;
     }
 
     protected function getSessionLocale()
