@@ -134,10 +134,12 @@ trait MLControl
         $key = $this->valueFrom ?: $this->fieldName;
 
         /**
-         * TODO Reimplement originale feature
+         * TODO Reimplement original feature
          */
-        foreach ($localeData as $locale => $value) {
-            $this->setTranslateAttribute($this->columnName, $value, $locale);
+        if ($this->model->methodExists('setAttributeTranslated')) {
+            foreach ($localeData as $locale => $value) {
+                $this->setTranslateAttribute($key, $value, $locale);
+            }
         }
 
         return array_get($localeData, $this->defaultLocale->code, $value);

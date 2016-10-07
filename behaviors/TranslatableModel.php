@@ -1,7 +1,6 @@
 <?php namespace RainLab\Translate\Behaviors;
 
 use Db;
-use Session;
 use System\Classes\ModelBehavior;
 use RainLab\Translate\Classes\Translator;
 use RainLab\Translate\Classes\TranslatableBehavior;

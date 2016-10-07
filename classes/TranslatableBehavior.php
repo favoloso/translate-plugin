@@ -1,5 +1,6 @@
 <?php namespace RainLab\Translate\Classes;
 
+use Session;
 use RainLab\Translate\Classes\Translator;
 use October\Rain\Extension\ExtensionBase;
 use October\Rain\Html\Helper as HtmlHelper;
@@ -68,7 +69,7 @@ abstract class TranslatableBehavior extends ExtensionBase
             if ($attributes = Session::get('RLTranslate.localeAttributes')) {
 
                 foreach ($attributes as $attribute) {
-                    $this->setTranslateAttribute($attribute['key'], $attribute['value'], $attribute['locale']);
+                    $this->setAttributeTranslated($attribute['key'], $attribute['value'], $attribute['locale']);
                 }
 
                 $this->syncTranslatableAttributes();
